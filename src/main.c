@@ -20,6 +20,54 @@ void np_push(int x, int y, int w, int h, const color_t *px) {
 #define KEY(k) (1ull << (k))
 #define TICK_MS 20
 
+/* Hardware Key bit numbers */
+#define K_LEFT      0
+#define K_UP        1
+#define K_DOWN      2
+#define K_RIGHT     3
+#define K_OK        4
+#define K_BACK      5
+#define K_HOME      6
+#define K_ONOFF     8
+#define K_SHIFT     12
+#define K_ALPHA     13
+#define K_XNT       14
+#define K_VAR       15
+#define K_TOOLBOX   16
+#define K_BACKSPACE 17
+#define K_EXP       18
+#define K_LN        19
+#define K_LOG       20
+#define K_I         21
+#define K_COMMA     22
+#define K_POWER     23
+#define K_SIN       24
+#define K_COS       25
+#define K_TAN       26
+#define K_PI        27
+#define K_SQRT      28
+#define K_SQUARE    29
+#define K_7         30
+#define K_8         31
+#define K_9         32
+#define K_LPAREN    33
+#define K_RPAREN    34
+#define K_4         36
+#define K_5         37
+#define K_6         38
+#define K_MUL       39
+#define K_DIV       40
+#define K_1         42
+#define K_2         43
+#define K_3         44
+#define K_PLUS      45
+#define K_MINUS     46
+#define K_0         48
+#define K_DOT       49
+#define K_EE        50
+#define K_ANS       51
+#define K_EXE       52
+
 #define BG_COLOR    HEX(0x0F172A)
 #define HEADER_BG   HEX(0x0B1120)
 #define CARD_USER   HEX(0x1E293B)
@@ -188,13 +236,13 @@ static void numa_respond(const char *input, char *reply, int max_len) {
   } else if (str_contains(low, "aide") || str_contains(low, "menu") || str_contains(low, "commandes")) {
     strncpy(reply, "Mots-cles: 'derivees', 'pythagore', 'thales', 'second degre', 'trigo', 'suites', 'ohm', 'gravitation', 'energie', 'constantes' ou un calcul !", max_len - 1);
   } else if (str_contains(low, "derivee")) {
-    strncpy(reply, "Derivees usuelles: (x^n)'=n*x^(n-1) | (e^x)'=e^x | (ln x)'=1/x | (sin)'=cos | (cos)'=-sin | (u*v)'=u'v+uv' | (u/v)'=(u'v-uv')/v^2", max_len - 1);
+    strncpy(reply, "Derivees: (x^n)'=n*x^(n-1) | (e^x)'=e^x | (ln x)'=1/x | (sin)'=cos | (cos)'=-sin | (u*v)'=u'v+uv' | (u/v)'=(u'v-uv')/v^2", max_len - 1);
   } else if (str_contains(low, "primitive") || str_contains(low, "integrale")) {
     strncpy(reply, "Primitives: x^n -> x^(n+1)/(n+1) | 1/x -> ln|x| | e^(ax) -> (1/a)e^(ax) | cos x -> sin x | sin x -> -cos x", max_len - 1);
   } else if (str_contains(low, "pythagore")) {
-    strncpy(reply, "Theoreme de Pythagore: Triangle rectangle ABC en A -> BC^2 = AB^2 + AC^2. Hypotenuse = sqrt(a^2 + b^2).", max_len - 1);
+    strncpy(reply, "Pythagore: Triangle rectangle ABC en A -> BC^2 = AB^2 + AC^2. Hypotenuse = sqrt(a^2 + b^2).", max_len - 1);
   } else if (str_contains(low, "thales")) {
-    strncpy(reply, "Theoreme de Thales: Droites (BC)//(DE) coupant (AB) et (AC) -> AB/AD = AC/AE = BC/DE.", max_len - 1);
+    strncpy(reply, "Thales: Droites (BC)//(DE) coupant (AB) et (AC) -> AB/AD = AC/AE = BC/DE.", max_len - 1);
   } else if (str_contains(low, "second degre") || str_contains(low, "delta") || str_contains(low, "discriminant")) {
     strncpy(reply, "ax^2 + bx + c = 0. Delta = b^2 - 4ac. Si D>0: x1,2 = (-b +/- sqrt(D))/(2a). Si D=0: x0 = -b/(2a). Si D<0: pas de racine reelle.", max_len - 1);
   } else if (str_contains(low, "trigo") || str_contains(low, "cos") || str_contains(low, "sin")) {
@@ -204,7 +252,7 @@ static void numa_respond(const char *input, char *reply, int max_len) {
   } else if (str_contains(low, "ohm") || str_contains(low, "electricite") || str_contains(low, "tension")) {
     strncpy(reply, "Loi d'Ohm: U = R * I (Tension en V, Resistance en Ohm, Intensite en A). Puissance: P = U * I = R * I^2. Energie: E = P * t (J).", max_len - 1);
   } else if (str_contains(low, "gravitation") || str_contains(low, "newton")) {
-    strncpy(reply, "Loi de gravitation (Newton): F = G * (m1 * m2) / d^2 avec G = 6.674e-11 N.m^2/kg^2. Poids terrestre: P = m * g (g = 9.81 N/kg).", max_len - 1);
+    strncpy(reply, "Gravitation (Newton): F = G * (m1 * m2) / d^2 avec G = 6.674e-11 N.m^2/kg^2. Poids terrestre: P = m * g (g = 9.81 N/kg).", max_len - 1);
   } else if (str_contains(low, "energie") || str_contains(low, "cinetique")) {
     strncpy(reply, "Energie: Cinetique Ec = (1/2)*m*v^2 | Potentielle Ep = m*g*h | Mecanique Em = Ec + Ep (conservee sans frottement).", max_len - 1);
   } else if (str_contains(low, "gaz")) {
@@ -310,41 +358,41 @@ int main(void) {
     uint64_t k = eadk_keyboard_scan(), hit = k & ~held;
     held = k;
 
-    if (k & (KEY(eadk_key_home) | KEY(eadk_key_on_off))) break;
+    if (k & (KEY(K_HOME) | KEY(K_ONOFF))) break;
 
     /* Touche ALPHA : bascule de mode */
-    if (hit & KEY(eadk_key_alpha)) {
+    if (hit & KEY(K_ALPHA)) {
       alpha_mode = !alpha_mode;
     }
 
     /* Touche BACKSPACE : effacer */
-    if (hit & KEY(eadk_key_backspace)) {
+    if (hit & KEY(K_BACKSPACE)) {
       if (user_len > 0) {
         user_buf[--user_len] = 0;
       }
     }
 
     /* Touche BACK : vider la ligne */
-    if (hit & KEY(eadk_key_back)) {
+    if (hit & KEY(K_BACK)) {
       user_len = 0;
       user_buf[0] = 0;
     }
 
     /* Touches HAUT / BAS : defilement de l'historique */
-    if (hit & KEY(eadk_key_up)) {
+    if (hit & KEY(K_UP)) {
       if (cur_view > 0) cur_view--;
     }
-    if (hit & KEY(eadk_key_down)) {
+    if (hit & KEY(K_DOWN)) {
       if (cur_view < hist_count - 1) cur_view++;
     }
 
     /* Touches GAUCHE / DROITE : suggestions rapides si champ vide */
     if (user_len == 0) {
-      if (hit & KEY(eadk_key_right)) {
+      if (hit & KEY(K_RIGHT)) {
         sugg_idx = (sugg_idx + 1) % NUM_SUGG;
         strncpy(user_buf, suggestions[sugg_idx], 60);
         user_len = strlen(user_buf);
-      } else if (hit & KEY(eadk_key_left)) {
+      } else if (hit & KEY(K_LEFT)) {
         sugg_idx = (sugg_idx + NUM_SUGG - 1) % NUM_SUGG;
         strncpy(user_buf, suggestions[sugg_idx], 60);
         user_len = strlen(user_buf);
@@ -354,56 +402,56 @@ int main(void) {
     /* Saisie alphanumerique */
     char c = 0;
     if (alpha_mode) {
-      if (hit & KEY(eadk_key_exp)) c = 'a';
-      else if (hit & KEY(eadk_key_ln)) c = 'b';
-      else if (hit & KEY(eadk_key_log)) c = 'c';
-      else if (hit & KEY(eadk_key_i)) c = 'd';
-      else if (hit & KEY(eadk_key_comma)) c = 'e';
-      else if (hit & KEY(eadk_key_power)) c = 'f';
-      else if (hit & KEY(eadk_key_sin)) c = 'g';
-      else if (hit & KEY(eadk_key_cos)) c = 'h';
-      else if (hit & KEY(eadk_key_tan)) c = 'i';
-      else if (hit & KEY(eadk_key_pi)) c = 'j';
-      else if (hit & KEY(eadk_key_sqrt)) c = 'k';
-      else if (hit & KEY(eadk_key_square)) c = 'l';
-      else if (hit & KEY(eadk_key_7)) c = 'm';
-      else if (hit & KEY(eadk_key_8)) c = 'n';
-      else if (hit & KEY(eadk_key_9)) c = 'o';
-      else if (hit & KEY(eadk_key_lparen)) c = 'p';
-      else if (hit & KEY(eadk_key_rparen)) c = 'q';
-      else if (hit & KEY(eadk_key_4)) c = 'r';
-      else if (hit & KEY(eadk_key_5)) c = 's';
-      else if (hit & KEY(eadk_key_6)) c = 't';
-      else if (hit & KEY(eadk_key_mul)) c = 'u';
-      else if (hit & KEY(eadk_key_div)) c = 'v';
-      else if (hit & KEY(eadk_key_1)) c = 'w';
-      else if (hit & KEY(eadk_key_2)) c = 'x';
-      else if (hit & KEY(eadk_key_3)) c = 'y';
-      else if (hit & KEY(eadk_key_plus)) c = 'z';
-      else if (hit & KEY(eadk_key_minus)) c = ' ';
-      else if (hit & KEY(eadk_key_0)) c = ' ';
-      else if (hit & KEY(eadk_key_dot)) c = '?';
-      else if (hit & KEY(eadk_key_xnt)) c = 'x';
+      if (hit & KEY(K_EXP)) c = 'a';
+      else if (hit & KEY(K_LN)) c = 'b';
+      else if (hit & KEY(K_LOG)) c = 'c';
+      else if (hit & KEY(K_I)) c = 'd';
+      else if (hit & KEY(K_COMMA)) c = 'e';
+      else if (hit & KEY(K_POWER)) c = 'f';
+      else if (hit & KEY(K_SIN)) c = 'g';
+      else if (hit & KEY(K_COS)) c = 'h';
+      else if (hit & KEY(K_TAN)) c = 'i';
+      else if (hit & KEY(K_PI)) c = 'j';
+      else if (hit & KEY(K_SQRT)) c = 'k';
+      else if (hit & KEY(K_SQUARE)) c = 'l';
+      else if (hit & KEY(K_7)) c = 'm';
+      else if (hit & KEY(K_8)) c = 'n';
+      else if (hit & KEY(K_9)) c = 'o';
+      else if (hit & KEY(K_LPAREN)) c = 'p';
+      else if (hit & KEY(K_RPAREN)) c = 'q';
+      else if (hit & KEY(K_4)) c = 'r';
+      else if (hit & KEY(K_5)) c = 's';
+      else if (hit & KEY(K_6)) c = 't';
+      else if (hit & KEY(K_MUL)) c = 'u';
+      else if (hit & KEY(K_DIV)) c = 'v';
+      else if (hit & KEY(K_1)) c = 'w';
+      else if (hit & KEY(K_2)) c = 'x';
+      else if (hit & KEY(K_3)) c = 'y';
+      else if (hit & KEY(K_PLUS)) c = 'z';
+      else if (hit & KEY(K_MINUS)) c = ' ';
+      else if (hit & KEY(K_0)) c = ' ';
+      else if (hit & KEY(K_DOT)) c = '?';
+      else if (hit & KEY(K_XNT)) c = 'x';
     } else {
-      if (hit & KEY(eadk_key_0)) c = '0';
-      else if (hit & KEY(eadk_key_1)) c = '1';
-      else if (hit & KEY(eadk_key_2)) c = '2';
-      else if (hit & KEY(eadk_key_3)) c = '3';
-      else if (hit & KEY(eadk_key_4)) c = '4';
-      else if (hit & KEY(eadk_key_5)) c = '5';
-      else if (hit & KEY(eadk_key_6)) c = '6';
-      else if (hit & KEY(eadk_key_7)) c = '7';
-      else if (hit & KEY(eadk_key_8)) c = '8';
-      else if (hit & KEY(eadk_key_9)) c = '9';
-      else if (hit & KEY(eadk_key_plus)) c = '+';
-      else if (hit & KEY(eadk_key_minus)) c = '-';
-      else if (hit & KEY(eadk_key_mul)) c = '*';
-      else if (hit & KEY(eadk_key_div)) c = '/';
-      else if (hit & KEY(eadk_key_dot)) c = '.';
-      else if (hit & KEY(eadk_key_lparen)) c = '(';
-      else if (hit & KEY(eadk_key_rparen)) c = ')';
-      else if (hit & KEY(eadk_key_power)) c = '^';
-      else if (hit & KEY(eadk_key_xnt)) c = 'x';
+      if (hit & KEY(K_0)) c = '0';
+      else if (hit & KEY(K_1)) c = '1';
+      else if (hit & KEY(K_2)) c = '2';
+      else if (hit & KEY(K_3)) c = '3';
+      else if (hit & KEY(K_4)) c = '4';
+      else if (hit & KEY(K_5)) c = '5';
+      else if (hit & KEY(K_6)) c = '6';
+      else if (hit & KEY(K_7)) c = '7';
+      else if (hit & KEY(K_8)) c = '8';
+      else if (hit & KEY(K_9)) c = '9';
+      else if (hit & KEY(K_PLUS)) c = '+';
+      else if (hit & KEY(K_MINUS)) c = '-';
+      else if (hit & KEY(K_MUL)) c = '*';
+      else if (hit & KEY(K_DIV)) c = '/';
+      else if (hit & KEY(K_DOT)) c = '.';
+      else if (hit & KEY(K_LPAREN)) c = '(';
+      else if (hit & KEY(K_RPAREN)) c = ')';
+      else if (hit & KEY(K_POWER)) c = '^';
+      else if (hit & KEY(K_XNT)) c = 'x';
     }
 
     if (c && user_len < 60) {
@@ -412,7 +460,7 @@ int main(void) {
     }
 
     /* Envoi avec OK ou EXE */
-    if (hit & (KEY(eadk_key_ok) | KEY(eadk_key_exe))) {
+    if (hit & (KEY(K_OK) | KEY(K_EXE))) {
       if (user_len > 0) {
         char rep[192];
         numa_respond(user_buf, rep, sizeof(rep));
