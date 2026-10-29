@@ -1,1 +1,49 @@
+name: Build NUMA App
 
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout NUMA code
+        uses: actions/checkout@v4
+
+      - name: Checkout NumPlay SDK & Tools
+        uses: actions/checkout@v4
+        with:
+          repository: Mason363/NumPlay
+          path: numplay_repo
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ARM Toolchain & nwlink
+        run: |
+          python3 numplay_repo/tools/setup.py
+          echo "$HOME/.numplay/xpack-arm-none-eabi-gcc-15.2.1-1.1/bin" >> $GITHUB_PATH
+          echo "$HOME/.numplay/node_modules/.bin" >> $GITHUB_PATH
+
+      - name: Compile NUMA.nwa
+        run: |
+          source $HOME/.numplay/env.sh
+          make
+
+      - name: Upload NUMA.nwa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NUMA-app
+          path: output/numa.nwa
