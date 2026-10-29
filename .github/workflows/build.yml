@@ -34,13 +34,10 @@ jobs:
       - name: Install ARM Toolchain & nwlink
         run: |
           python3 numplay_repo/tools/setup.py
-          echo "$HOME/.numplay/xpack-arm-none-eabi-gcc-15.2.1-1.1/bin" >> $GITHUB_PATH
-          echo "$HOME/.numplay/node_modules/.bin" >> $GITHUB_PATH
 
       - name: Compile NUMA.nwa
         run: |
-          source $HOME/.numplay/env.sh
-          make
+          bash -c "source $HOME/.numplay/env.sh && make"
 
       - name: Upload NUMA.nwa Artifact
         uses: actions/upload-artifact@v4
