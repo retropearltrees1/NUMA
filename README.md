@@ -18,11 +18,12 @@
   - **Mode NUM :** chiffres `0-9`, opérateurs `+`, `-`, `*`, `/`, parenthèses `(`, `)`, puissance `^`.
   - **Mode ALPHA :** saisie de toutes les lettres de l'alphabet (A-Z) et de l'espace directement avec le clavier de la calculatrice !
   - **Suggestions instantanées :** flèches Droite/Gauche quand le champ est vide pour tester instantanément des exemples.
-- **Calculateur Arithmétique Direct :** Évalue automatiquement les expressions numériques (ex: `25 * 4 + 18`, `1000 / 8`).
+- **Calculateur Arithmétique Complet :** Évaluateur d'expressions récursif avec priorité des opérateurs, parenthèses et puissance. Supporte `25 * 4 + 18`, `2^10`, `(3+2)*7`, `-5+3`, etc.
 - **Base de Connaissances & Formulaire :**
-  - **Mathématiques :** Dérivées usuelles (`(x^n)'`, `(e^x)'`, `(u*v)'`, etc.), primitives, théorème de Pythagore, théorème de Thalès, équations du second degré (discriminant $\Delta$), trigonométrie, suites arithmétiques & géométriques.
-  - **Physique-Chimie :** Loi d'Ohm ($U=R\cdot I$, $P=U\cdot I$), gravitation de Newton ($F=G\cdot m_1 m_2/d^2$), énergie cinétique & potentielle, loi des gaz parfaits ($PV=nRT$), constantes universelles ($c$, $h$, $N_A$, $g$).
-- **Personnalité & Mémoire de Session :** Dialogue interactif, présentation, salutations et mémorisation du prénom de l'utilisateur.
+  - **Mathématiques :** Dérivées usuelles, primitives & intégrales, théorème de Pythagore, théorème de Thalès, équations du second degré (discriminant $\Delta$), trigonométrie, suites arithmétiques & géométriques, logarithme & exponentielle.
+  - **Physique :** Loi d'Ohm ($U=R\cdot I$, $P=U\cdot I$), gravitation de Newton ($F=G\cdot m_1 m_2/d^2$), énergie cinétique & potentielle, loi des gaz parfaits ($PV=nRT$), cinématique (MRU/MRUA), constantes universelles ($c$, $h$, $N_A$, $g$, $R$, $G$).
+  - **Chimie :** pH acido-basique ($\text{pH} = -\log_{10}[\text{H}_3\text{O}^+]$).
+- **Personnalité & Mémoire de Session :** Dialogue interactif, présentation, salutations, remerciements et mémorisation du prénom de l'utilisateur.
 
 ---
 

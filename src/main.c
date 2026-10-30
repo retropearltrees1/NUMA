@@ -31,7 +31,7 @@ void *np_alloc(uint32_t size) {
 #define K_DOWN      2
 #define K_RIGHT     3
 #define K_OK        4
-#define K_BACK      5
+#define K_BACK       5
 #define K_HOME      6
 #define K_ONOFF     8
 #define K_SHIFT     12
@@ -111,9 +111,15 @@ static const char *suggestions[] = {
   "constantes",
   "qui es tu",
   "25 * 4 + 18",
-  "thales"
+  "thales",
+  "trigo",
+  "suites",
+  "ph",
+  "logarithme",
+  "2^10",
+  "cinematique"
 };
-#define NUM_SUGG 10
+#define NUM_SUGG 16
 static int sugg_idx = 0;
 
 static void str_tolower(char *dst, const char *src) {
@@ -130,73 +136,158 @@ static bool str_contains(const char *haystack, const char *needle) {
   return strstr(haystack, needle) != NULL;
 }
 
-static bool try_eval_arith(const char *s, char *out, int max_len) {
-  int a = 0, b = 0;
-  char op = 0;
-  int i = 0;
-  while (s[i] == ' ') i++;
-  if (s[i] < '0' || s[i] > '9') return false;
-  while (s[i] >= '0' && s[i] <= '9') {
-    a = a * 10 + (s[i] - '0');
-    i++;
-  }
-  while (s[i] == ' ') i++;
-  if (s[i] == '+' || s[i] == '-' || s[i] == '*' || s[i] == '/') {
-    op = s[i++];
-  } else {
-    return false;
-  }
-  while (s[i] == ' ') i++;
-  if (s[i] < '0' || s[i] > '9') return false;
-  while (s[i] >= '0' && s[i] <= '9') {
-    b = b * 10 + (s[i] - '0');
-    i++;
-  }
-  while (s[i] == ' ') i++;
-  if (s[i] != 0 && s[i] != '\n') return false;
+/* ── Integer to string ─────────────────────────── */
 
-  int res = 0;
-  if (op == '+') res = a + b;
-  else if (op == '-') res = a - b;
-  else if (op == '*') res = a * b;
-  else if (op == '/') {
-    if (b == 0) {
-      strncpy(out, "Erreur: Division par zero impossible !", max_len - 1);
-      return true;
-    }
-    res = a / b;
-  }
-
-  char buf[32];
-  int n = 0, v = res < 0 ? -res : res;
-  if (v == 0) buf[n++] = '0';
-  else {
-    while (v > 0) {
-      buf[n++] = '0' + (v % 10);
-      v /= 10;
-    }
-  }
-  if (res < 0) buf[n++] = '-';
+static void int_to_str(int val, char *buf) {
+  int n = 0, v = val < 0 ? -val : val;
+  if (v == 0) { buf[0] = '0'; buf[1] = 0; return; }
+  while (v > 0) { buf[n++] = '0' + (v % 10); v /= 10; }
+  if (val < 0) buf[n++] = '-';
   buf[n] = 0;
   for (int j = 0; j < n / 2; j++) {
-    char t = buf[j];
-    buf[j] = buf[n - 1 - j];
-    buf[n - 1 - j] = t;
+    char t = buf[j]; buf[j] = buf[n - 1 - j]; buf[n - 1 - j] = t;
   }
-  
-  int written = 0;
-  const char *prefix = "Calcul : ";
-  while (prefix[written] && written < max_len - 1) {
-    out[written] = prefix[written];
-    written++;
+}
+
+/* ── Recursive descent expression evaluator ────── */
+/* Grammar:                                         */
+/*   expr   = term (('+' | '-') term)*              */
+/*   term   = factor (('*' | '/') factor)*          */
+/*   factor = base ('^' factor)?                    */
+/*   base   = number | '(' expr ')' | ('+'|'-') base */
+
+static const char *cp;
+static int c_err;
+static int c_divzero;
+
+static int p_expr(void);
+static int p_term(void);
+static int p_factor(void);
+static int p_base(void);
+
+static int p_num(void) {
+  while (*cp == ' ') cp++;
+  if (*cp < '0' || *cp > '9') { c_err = 1; return 0; }
+  int val = 0;
+  while (*cp >= '0' && *cp <= '9') {
+    val = val * 10 + (*cp - '0');
+    cp++;
   }
+  return val;
+}
+
+static int p_base(void) {
+  while (*cp == ' ') cp++;
+  if (*cp == '(') {
+    cp++;
+    int v = p_expr();
+    if (c_err) return 0;
+    while (*cp == ' ') cp++;
+    if (*cp != ')') { c_err = 1; return 0; }
+    cp++;
+    return v;
+  }
+  if (*cp == '-') { cp++; return -p_base(); }
+  if (*cp == '+') { cp++; return p_base(); }
+  return p_num();
+}
+
+static int p_factor(void) {
+  int base = p_base();
+  if (c_err) return 0;
+  while (*cp == ' ') cp++;
+  if (*cp == '^') {
+    cp++;
+    int exp = p_factor();
+    if (c_err) return 0;
+    int r = 1;
+    for (int i = 0; i < exp; i++) r *= base;
+    return r;
+  }
+  return base;
+}
+
+static int p_term(void) {
+  int v = p_factor();
+  if (c_err) return 0;
+  while (1) {
+    while (*cp == ' ') cp++;
+    if (*cp == '*') { cp++; v *= p_factor(); if (c_err) return 0; }
+    else if (*cp == '/') {
+      cp++;
+      int d = p_factor();
+      if (c_err) return 0;
+      if (d == 0) { c_divzero = 1; return 0; }
+      v /= d;
+    }
+    else break;
+  }
+  return v;
+}
+
+static int p_expr(void) {
+  int v = p_term();
+  if (c_err) return 0;
+  while (1) {
+    while (*cp == ' ') cp++;
+    if (*cp == '+') { cp++; v += p_term(); if (c_err) return 0; }
+    else if (*cp == '-') { cp++; v -= p_term(); if (c_err) return 0; }
+    else break;
+  }
+  return v;
+}
+
+static bool try_eval_arith(const char *s, char *out, int max_len) {
+  bool has_digit = false, has_op = false;
+  for (int i = 0; s[i]; i++) {
+    char c = s[i];
+    if (c >= '0' && c <= '9') has_digit = true;
+    else if (c == '+' || c == '*' || c == '/' || c == '^') has_op = true;
+    else if (c == '-') {
+      int j = i - 1;
+      while (j >= 0 && s[j] == ' ') j--;
+      if (j >= 0 && ((s[j] >= '0' && s[j] <= '9') || s[j] == ')')) has_op = true;
+    }
+    else if (c != ' ' && c != '\n' && c != '(' && c != ')') return false;
+  }
+  if (!has_digit || !has_op) return false;
+
+  cp = s;
+  c_err = 0;
+  c_divzero = 0;
+
+  int result = p_expr();
+  if (c_err) return false;
+
+  while (*cp == ' ') cp++;
+  if (*cp != 0 && *cp != '\n') return false;
+
+  if (c_divzero) {
+    strncpy(out, "Erreur: Division par zero impossible !", max_len - 1);
+    out[max_len - 1] = 0;
+    return true;
+  }
+
+  char numbuf[16];
+  int_to_str(result, numbuf);
+
+  int expr_start = 0;
+  while (s[expr_start] == ' ') expr_start++;
+  int expr_end = (int)strlen(s);
+  while (expr_end > expr_start && (s[expr_end - 1] == ' ' || s[expr_end - 1] == '\n')) expr_end--;
+
+  int w = 0;
+  for (int i = expr_start; i < expr_end && w < max_len - 1; i++) out[w++] = s[i];
+  if (w < max_len - 1) out[w++] = ' ';
+  if (w < max_len - 1) out[w++] = '=';
+  if (w < max_len - 1) out[w++] = ' ';
   int k = 0;
-  while (buf[k] && written < max_len - 1) {
-    out[written++] = buf[k++];
-  }
-  out[written] = 0;
+  while (numbuf[k] && w < max_len - 1) out[w++] = numbuf[k++];
+  out[w] = 0;
   return true;
 }
+
+/* ── Knowledge base & NLP ──────────────────────── */
 
 static void numa_respond(const char *input, char *reply, int max_len) {
   char low[64];
@@ -232,41 +323,52 @@ static void numa_respond(const char *input, char *reply, int max_len) {
     } else {
       strncpy(reply, "Tu ne me l'as pas encore dit ! Dis-moi par exemple: 'je m'appelle ...'", max_len - 1);
     }
-  } else if (str_contains(low, "qui es tu") || str_contains(low, "qui t'a cree") || str_contains(low, "numa") || str_contains(low, "presentation")) {
+  } else if (str_contains(low, "qui es tu") || str_contains(low, "qui t'a cree") || str_contains(low, "presentation")) {
     strncpy(reply, "Je suis NUMA (NumWorks AI), assistant autonome en C natif sur ARM Cortex-M7 ! 100% hors-ligne sans Wifi.", max_len - 1);
   } else if (str_contains(low, "bonjour") || str_contains(low, "salut") || str_contains(low, "hello") || str_contains(low, "coucou") || str_contains(low, "hey")) {
     strncpy(reply, "Bonjour ! Pret pour les maths et les sciences ? Tape 'aide' ou un mot-cle pour commencer !", max_len - 1);
   } else if (str_contains(low, "ca va") || str_contains(low, "comment vas")) {
     strncpy(reply, "Je tourne a plein regime sans surchauffer ! Que veux-tu reviser aujourd'hui ?", max_len - 1);
+  } else if (str_contains(low, "merci")) {
+    strncpy(reply, "Avec plaisir ! N'hesite pas si tu as d'autres questions.", max_len - 1);
+  } else if (str_contains(low, "au revoir") || str_contains(low, "bye")) {
+    strncpy(reply, "A bientot ! Bon courage pour tes revisions.", max_len - 1);
   } else if (str_contains(low, "aide") || str_contains(low, "menu") || str_contains(low, "commandes")) {
-    strncpy(reply, "Mots-cles: 'derivees', 'pythagore', 'thales', 'second degre', 'trigo', 'suites', 'ohm', 'gravitation', 'energie', 'constantes' ou un calcul !", max_len - 1);
+    strncpy(reply, "Mots-cles: 'derivees', 'primitives', 'pythagore', 'thales', 'second degre', 'trigo', 'suites', 'logarithme', 'ohm', 'gravitation', 'energie', 'gaz', 'cinematique', 'ph', 'constantes' ou un calcul !", max_len - 1);
   } else if (str_contains(low, "derivee")) {
-    strncpy(reply, "Derivees: (x^n)'=n*x^(n-1) | (e^x)'=e^x | (ln x)'=1/x | (sin)'=cos | (cos)'=-sin | (u*v)'=u'v+uv' | (u/v)'=(u'v-uv')/v^2", max_len - 1);
+    strncpy(reply, "Derivees: (x^n)'=n*x^(n-1) | (e^x)'=e^x | (ln x)'=1/x | (sin)'=cos | (cos)'=-sin | (tan)'=1/cos^2 | (u*v)'=u'v+uv' | (u/v)'=(u'v-uv')/v^2 | (u^n)'=n*u^(n-1)*u'", max_len - 1);
   } else if (str_contains(low, "primitive") || str_contains(low, "integrale")) {
-    strncpy(reply, "Primitives: x^n -> x^(n+1)/(n+1) | 1/x -> ln|x| | e^(ax) -> (1/a)e^(ax) | cos x -> sin x | sin x -> -cos x", max_len - 1);
+    strncpy(reply, "Primitives: x^n -> x^(n+1)/(n+1) | 1/x -> ln|x| | e^x -> e^x | e^(ax) -> (1/a)e^(ax) | cos x -> sin x | sin x -> -cos x | 1/(1+x^2) -> arctan x", max_len - 1);
   } else if (str_contains(low, "pythagore")) {
-    strncpy(reply, "Pythagore: Triangle rectangle ABC en A -> BC^2 = AB^2 + AC^2. Hypotenuse = sqrt(a^2 + b^2).", max_len - 1);
+    strncpy(reply, "Pythagore: Triangle rectangle ABC en A -> BC^2 = AB^2 + AC^2. Hypotenuse = sqrt(a^2 + b^2). Reciproque: si BC^2=AB^2+AC^2 alors rectangle en A.", max_len - 1);
   } else if (str_contains(low, "thales")) {
     strncpy(reply, "Thales: Droites (BC)//(DE) coupant (AB) et (AC) -> AB/AD = AC/AE = BC/DE.", max_len - 1);
   } else if (str_contains(low, "second degre") || str_contains(low, "delta") || str_contains(low, "discriminant")) {
-    strncpy(reply, "ax^2 + bx + c = 0. Delta = b^2 - 4ac. Si D>0: x1,2 = (-b +/- sqrt(D))/(2a). Si D=0: x0 = -b/(2a). Si D<0: pas de racine reelle.", max_len - 1);
+    strncpy(reply, "ax^2 + bx + c = 0. Delta = b^2 - 4ac. D>0: x1,2 = (-b +/- sqrt(D))/(2a). D=0: x0 = -b/(2a). D<0: pas de racine reelle. Somme: -b/a | Produit: c/a", max_len - 1);
   } else if (str_contains(low, "trigo") || str_contains(low, "cos") || str_contains(low, "sin")) {
-    strncpy(reply, "Trigonometrie: cos^2(x) + sin^2(x) = 1 | tan(x) = sin/cos | cos(a+b) = cos(a)cos(b) - sin(a)sin(b) | sin(2x) = 2sin(x)cos(x)", max_len - 1);
+    strncpy(reply, "Trigo: cos^2+sin^2=1 | tan=sin/cos | cos(a+b)=cos a cos b - sin a sin b | sin(a+b)=sin a cos b + cos a sin b | sin(2x)=2sin x cos x", max_len - 1);
   } else if (str_contains(low, "suite")) {
-    strncpy(reply, "Suites: Arithmetique: Un = U0 + n*r, Somme = (n+1)(U0+Un)/2. Geometrique: Un = U0*q^n, Somme = U0*(1-q^(n+1))/(1-q).", max_len - 1);
+    strncpy(reply, "Suites: Arithmetique Un=U0+n*r, Somme=(n+1)(U0+Un)/2. Geometrique Un=U0*q^n, Somme=U0*(1-q^(n+1))/(1-q). Somme infinie (|q|<1): U0/(1-q).", max_len - 1);
+  } else if (str_contains(low, "logarithme") || str_contains(low, "ln") || str_contains(low, "exponentielle")) {
+    strncpy(reply, "Logarithme: ln(a*b)=ln a+ln b | ln(a/b)=ln a-ln b | ln(a^n)=n*ln a | log(x)=ln x/ln 10 | e^(a+b)=e^a*e^b | ln(e^x)=x", max_len - 1);
   } else if (str_contains(low, "ohm") || str_contains(low, "electricite") || str_contains(low, "tension")) {
-    strncpy(reply, "Loi d'Ohm: U = R * I (Tension en V, Resistance en Ohm, Intensite en A). Puissance: P = U * I = R * I^2. Energie: E = P * t (J).", max_len - 1);
+    strncpy(reply, "Loi d'Ohm: U = R * I (V, Ohm, A). Puissance: P = U * I = R * I^2 (W). Energie: E = P * t (J). Noeud: Somme I = 0. Maille: Somme U = 0.", max_len - 1);
   } else if (str_contains(low, "gravitation") || str_contains(low, "newton")) {
     strncpy(reply, "Gravitation (Newton): F = G * (m1 * m2) / d^2 avec G = 6.674e-11 N.m^2/kg^2. Poids terrestre: P = m * g (g = 9.81 N/kg).", max_len - 1);
   } else if (str_contains(low, "energie") || str_contains(low, "cinetique")) {
-    strncpy(reply, "Energie: Cinetique Ec = (1/2)*m*v^2 | Potentielle Ep = m*g*h | Mecanique Em = Ec + Ep (conservee sans frottement).", max_len - 1);
+    strncpy(reply, "Energie: Cinetique Ec = (1/2)*m*v^2 | Potentielle Ep = m*g*h | Mecanique Em = Ec + Ep (conservee sans frottement). Puissance: P = E/t.", max_len - 1);
   } else if (str_contains(low, "gaz")) {
     strncpy(reply, "Gaz parfaits: P * V = n * R * T (P en Pa, V en m^3, n en mol, R = 8.314 J/(mol.K), T en Kelvin = C + 273.15).", max_len - 1);
   } else if (str_contains(low, "constantes")) {
-    strncpy(reply, "Constantes: c = 3.0e8 m/s (lumiere) | h = 6.626e-34 J.s (Planck) | Na = 6.022e23 mol^-1 (Avogadro) | g = 9.81 m/s^2.", max_len - 1);
+    strncpy(reply, "Constantes: c = 3.0e8 m/s | h = 6.626e-34 J.s | Na = 6.022e23/mol | g = 9.81 m/s^2 | R = 8.314 J/(mol.K) | G = 6.674e-11", max_len - 1);
+  } else if (str_contains(low, "cinematique") || str_contains(low, "mouvement") || str_contains(low, "mrua")) {
+    strncpy(reply, "Cinematique: v=d/t (MRU) | v=v0+a*t (MRUA) | d=v0*t+0.5*a*t^2 | v^2=v0^2+2*a*d | Chute libre: v=g*t, h=0.5*g*t^2", max_len - 1);
+  } else if (str_contains(low, "ph") || str_contains(low, "acide") || str_contains(low, "base")) {
+    strncpy(reply, "pH: pH = -log10([H3O+]) | pH<7 acide, pH=7 neutre, pH>7 basique | [H3O+] = 10^(-pH) | pH + pOH = 14 (25C)", max_len - 1);
   } else {
-    strncpy(reply, "Intention non reconnue. Essaie: 'aide', 'derivees', 'pythagore', 'second degre', 'ohm' ou entre un calcul (ex: 25 * 4) !", max_len - 1);
+    strncpy(reply, "Non reconnu. Essaie: 'aide', 'derivees', 'pythagore', 'second degre', 'ohm', 'ph', 'logarithme' ou un calcul (ex: 2+3*4) !", max_len - 1);
   }
+  reply[max_len - 1] = 0;
 }
 
 static void add_history(const char *q, const char *r) {
@@ -296,7 +398,7 @@ static void scene(void *ctx) {
   /* Header */
   gfx_fill(0, 0, SCREEN_W, 24, HEADER_BG);
   gfx_text(&np_font_title, 10, 18, "NUMA AI", TEXT_AI, 256);
-  gfx_text(&np_font_small, 88, 17, "v1.0 - Hors-Ligne", TEXT_MUTED, 200);
+  gfx_text(&np_font_small, 88, 17, "v2.0 - Hors-Ligne", TEXT_MUTED, 200);
 
   /* Badge Mode Clavier */
   if (alpha_mode) {
@@ -311,7 +413,7 @@ static void scene(void *ctx) {
   if (hist_count == 0) {
     gfx_rrect(15, 45, 290, 130, 8, CARD_AI, 256);
     gfx_text_center(&np_font_title, 160, 75, "Bienvenue sur NUMA !", TEXT_AI, 256);
-    gfx_paragraph(&np_font_body, 160, 100, 260, 16, "Ton assistant personnel pour la NumWorks. Pose-moi une question en maths, physique ou entre un calcul !", WHITE, 256);
+    gfx_paragraph(&np_font_body, 160, 100, 260, 16, "Ton assistant scientifique hors-ligne. Pose une question en maths, physique, chimie ou entre un calcul !", WHITE, 256);
     gfx_text_center(&np_font_small, 160, 155, "Appuie sur les fleches Droite/Gauche pour des exemples", ACCENT_AMB, 256);
   } else {
     Entry *e = &history[cur_view];
@@ -396,11 +498,11 @@ int main(void) {
       if (hit & KEY(K_RIGHT)) {
         sugg_idx = (sugg_idx + 1) % NUM_SUGG;
         strncpy(user_buf, suggestions[sugg_idx], 60);
-        user_len = strlen(user_buf);
+        user_len = (int)strlen(user_buf);
       } else if (hit & KEY(K_LEFT)) {
         sugg_idx = (sugg_idx + NUM_SUGG - 1) % NUM_SUGG;
         strncpy(user_buf, suggestions[sugg_idx], 60);
-        user_len = strlen(user_buf);
+        user_len = (int)strlen(user_buf);
       }
     }
 
