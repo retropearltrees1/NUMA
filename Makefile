@@ -8,9 +8,10 @@ LAUNCHER_SRC = numplay_repo/launcher/src
 COMMON_SRC = numplay_repo/games/common
 
 CFLAGS = -std=c11 $(shell $(NWLINK) eadk-cflags-device)
-CFLAGS += -Os -Wall -Wextra -Wno-unused-parameter
+CFLAGS += -Os -Wall -Wextra -Wno-unused-parameter -fno-math-errno -fsingle-precision-constant
+CFLAGS += -fno-tree-loop-distribute-patterns -flto -fno-fat-lto-objects -fwhole-program -fvisibility=internal
+CFLAGS += -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables
 CFLAGS += -I. -I$(LAUNCHER_SRC) -I$(COMMON_SRC)
-CFLAGS += -fno-tree-loop-distribute-patterns -flto -fno-fat-lto-objects -fvisibility=internal
 
 LDFLAGS = -Wl,--relocatable -nostartfiles --specs=nano.specs
 LDFLAGS += -Wl,-e,main -Wl,-u,eadk_app_name -Wl,-u,eadk_app_icon -Wl,-u,eadk_api_level
@@ -18,7 +19,7 @@ LDFLAGS += -Wl,--gc-sections -flinker-output=nolto-rel
 
 OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/gfx.o $(BUILD_DIR)/font_data.o $(BUILD_DIR)/xfont.o $(BUILD_DIR)/icon.o
 
-all: $(BUILD_DIR)/$(NAME).nwa
+all: $(BUILD_DIR)/$(NAME).nwa check
 
 check: $(BUILD_DIR)/$(NAME).nwa
 	$(NWLINK) nwa-bin $< $(BUILD_DIR)/$(NAME).bin
