@@ -17,10 +17,9 @@ void np_push(int x, int y, int w, int h, const color_t *px) {
   eadk_display_push_rect((eadk_rect_t){(uint16_t)x, (uint16_t)y, (uint16_t)w, (uint16_t)h}, px);
 }
 
-void *np_alloc(size_t s) {
-  (void)s;
+void *np_alloc(uint32_t size) {
+  (void)size;
   return 0;
-}, px);
 }
 
 #define KEY(k) (1ull << (k))
@@ -154,7 +153,7 @@ static bool try_eval_arith(const char *s, char *out, int max_len) {
     i++;
   }
   while (s[i] == ' ') i++;
-  if (s[i] != 0 && s[i] != '\\n') return false;
+  if (s[i] != 0 && s[i] != '\n') return false;
 
   int res = 0;
   if (op == '+') res = a + b;
